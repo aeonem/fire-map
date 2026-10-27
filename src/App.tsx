@@ -12,8 +12,27 @@ export default function App() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: "https://tiles.openfreemap.org/styles/liberty",
-      center: [35, 39],
+      center: [35, 39], // [lng, lat]
       zoom: 5
+    })
+
+    map.on("load", () => {
+      map.addSource("fires", {
+        type: "geojson",
+        data: "/data/fires.geojson"
+      })
+
+      map.addLayer({
+        id: "fires",
+        type: "circle",
+        source: "fires",
+        paint: {
+          "circle-radius": 4,
+          "circle-color": "#e4572e",
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#ffffff"
+        },
+      })
     })
 
     return () => map.remove()
