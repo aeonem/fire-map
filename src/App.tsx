@@ -9,6 +9,18 @@ type FireProperties = {
   satellite: string
 }
 
+const confidenceLevels: Record<string, string> = {
+  l: "Low",
+  n: "Normal",
+  h: "High"
+}
+
+const satelliteTypes: Record<string, string> = {
+  N: "Suomi NPP",
+  N20: "NOAA-20",
+  N21: "NOAA-21"
+}
+
 export default function App() {
   const [selectedFire, setSelectedFire] = useState<FireProperties | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -70,6 +82,28 @@ export default function App() {
     return () => map.remove()
   }, [])
 
-console.log(selectedFire)
-  return <div ref={containerRef} style={{width: "100%", height:"100%"}} />
+  return (
+    <div style={{position: "relative", width: "100%", height: "100%"}}>
+      <div ref={containerRef} style={{width: "100%", height: "100%"}}/>
+
+      {selectedFire && (
+        <div style={{
+          position: "absolute", top: 16, right: 16,
+          background: "white", padding: 16, borderRadius: 8
+        }}>
+          <button aria-label="Close" onClick={() => setSelectedFire(null)}>X</button>
+          <dl>
+            <dt>Fire Radiative Power</dt>
+            <dd>{selectedFire.frp.toFixed(1)} MW</dd>
+            <dt>Detected at</dt>
+            <dd>{new Date(selectedFire.detectedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</dd>
+            <dt>Confidence</dt>
+            <dd>{confidenceLevels[selectedFire.confidence] ?? selectedFire.confidence}</dd>
+            <dt>Satellite</dt>
+            <dd>{satelliteTypes[selectedFire.satellite] ?? selectedFire.satellite}</dd>
+          </dl>
+        </div>
+      )}
+    </div>
+  )
 }
