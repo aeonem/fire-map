@@ -27,8 +27,19 @@ export default function App() {
         type: "circle",
         source: "fires",
         paint: {
-          "circle-radius": 4,
-          "circle-color": "#e4572e",
+          "circle-radius": [
+            "interpolate", ["linear"], ["get", "frp"],
+            0, 3,
+            10, 6,
+            50, 12, 
+          ],
+          "circle-color": [
+            "interpolate", ["linear"], ["get", "frp"],
+            0,  "#fecc5c",   // açık sarı-turuncu
+            5,  "#fd8d3c",   // turuncu
+            15, "#f03b20",   // kırmızı
+            40, "#bd0026",   // koyu kırmızı
+          ],
           "circle-stroke-width": 1,
           "circle-stroke-color": "#ffffff"
         },
