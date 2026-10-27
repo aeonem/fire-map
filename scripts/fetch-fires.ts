@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "node:fs/promises"
+
 type Fire = {
     latitude: number
     longitude: number
@@ -8,8 +10,6 @@ type Fire = {
 }
 
 function toIsoTime(date: string, time: string): string{
-    // Girdi:   date = "2026-10-26"    time = "107"
-    // Çıktı:   "2026-10-26T01:07:00Z"
     const fullTime = time.padStart(4, "0")
     const hour = fullTime.slice(0, 2)
     const minute = fullTime.slice(2, 4)
@@ -25,6 +25,22 @@ function toFire(row: Record<string, string>): Fire {
         confidence: row.confidence,
         satellite: row.satellite,
         detectedAt: toIsoTime(row.acq_date, row.acq_time)
+    }
+}
+
+function toFeature(fire: Fire) {
+    return {
+        type: "Feature",
+        geometry: {
+            type: "Point",
+            coordinates: [fire.longitude, fire.latitude]
+        },
+        properties: {
+            frp: fire.frp,
+            confidence: fire.confidence,
+            satellite: fire.satellite,
+            detectedAt: fire.detectedAt
+        }
     }
 }
 
@@ -58,5 +74,12 @@ const rows = dataLines.map((line) => {
 
 const fires = rows.map(toFire)
 
-console.log(`Fires: ${fires.length}`)
-console.log(fires[0])
+const geojson = {
+    type: "FeatureCollection",
+    features: fires.map(toFeature)
+}
+
+await mkdir("public/data", { recursive: true })
+await writeFile("public/data/fires.geojson", JSON.stringify(geojson))
+
+console.log(`Wrote ${fires.length} fires to public/data/fires.geojson`);
