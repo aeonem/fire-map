@@ -1,9 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css"
 
+type FireProperties = {
+  confidence: string,
+  detectedAt: string,
+  frp: number,
+  satellite: string
+}
 
 export default function App() {
+  const [selectedFire, setSelectedFire] = useState<FireProperties | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -46,8 +53,23 @@ export default function App() {
       })
     })
 
+    map.on("click", "fires", (e) => {
+      const feature = e.features?.[0]
+      if(!feature) return;
+      setSelectedFire(feature.properties as FireProperties)
+    })
+
+    map.on("mouseenter", "fires", () => {
+      map.getCanvas().style.cursor = "pointer"
+    })
+
+    map.on("mouseleave", "fires", () => {
+      map.getCanvas().style.cursor = ""
+    })
+
     return () => map.remove()
   }, [])
 
+console.log(selectedFire)
   return <div ref={containerRef} style={{width: "100%", height:"100%"}} />
 }
