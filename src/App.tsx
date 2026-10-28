@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -40,6 +39,9 @@ export default function App() {
     })
 
     map.on("load", () => {
+      const layers = map.getStyle().layers
+      const firstSymbolLayer = layers.find((layer) => layer.type === "symbol")
+
       map.addSource("fires", {
         type: "geojson",
         data: "/data/fires.geojson"
@@ -66,7 +68,9 @@ export default function App() {
           "circle-stroke-width": 1,
           "circle-stroke-color": "#ffffff"
         },
-      })
+      },
+      firstSymbolLayer?.id
+    )
     })
 
     map.on("click", "fires", (e) => {
