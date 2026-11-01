@@ -76,7 +76,8 @@ const fires = rows.map(toFire)
 
 const geojson = {
     type: "FeatureCollection",
-    features: fires.map(toFeature)
+    features: fires.map(toFeature),
+    generatedAt: new Date().toISOString()
 }
 
 await mkdir("public/data", { recursive: true })
