@@ -6,6 +6,8 @@ import type { FeatureCollection } from "geojson";
 
 maplibregl.setWorkerUrl(workerUrl)
 
+const FIRES_URL = "https://raw.githubusercontent.com/aeonem/fire-map/refs/heads/main/public/data/fires.geojson"
+
 type FireProperties = {
   confidence: string,
   detectedAt: string,
@@ -50,7 +52,7 @@ export default function App() {
     map.on("load", async () => {
       const layers = map.getStyle().layers
       const firstSymbolLayer = layers.find((layer) => layer.type === "symbol")
-      const response = await fetch("/data/fires.geojson")
+      const response = await fetch(FIRES_URL)
       const data: FeatureCollection = await response.json()
 
       setFireCount(data.features.length)
