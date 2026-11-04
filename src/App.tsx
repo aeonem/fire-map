@@ -19,6 +19,7 @@ type FireProperties = {
 }
 
 type FiresData = FeatureCollection & { generatedAt?: string}
+type SelectedFire = FireProperties & { lat: number; lon: number }
 
 const FIRE_POWER_STOPS = [
   { value: 0, color: "#fecc5c", label: "0" },
@@ -62,7 +63,8 @@ function formatRelativeTime(iso: string): string {
 }
 
 export default function App() {
-  const [selectedFire, setSelectedFire] = useState<FireProperties | null>(null)
+  const [selectedFire, setSelectedFire] = useState<SelectedFire | null>(null)
+  const [copied, setCopied] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const [fireCount, setFireCount] = useState<number | null>(null)
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
@@ -76,6 +78,14 @@ export default function App() {
         ? current.filter((t) => t !== group)
         : [...current, group]
     )
+  }
+
+  async function copyCoordinates() {
+    if (!selectedFire) return
+    const text = `${selectedFire.lat.toFixed(4)}, ${selectedFire.lon.toFixed(4)}`
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   useEffect(() => {
@@ -129,13 +139,11 @@ export default function App() {
 
     map.on("click", "fires", (e) => {
       const feature = e.features?.[0]
-      if(!feature) return;
-      setSelectedFire(feature.properties as FireProperties)
-
-      if (feature.geometry.type === "Point") {
-        const [lon, lat] = feature.geometry.coordinates
-        console.log(`${lat}, ${lon}`)
-      }
+      if(!feature || feature.geometry.type !== "Point") return;
+      
+      const [lon, lat] = feature.geometry.coordinates
+      setSelectedFire({ ...(feature.properties as FireProperties), lat, lon })
+      setCopied(false)
     })
 
     map.on("mouseenter", "fires", () => {
@@ -184,6 +192,13 @@ export default function App() {
             <dd>{satelliteTypes[selectedFire.satellite] ?? selectedFire.satellite}</dd>
             <dt>Land type</dt>
             <dd>{landCoverLabels[selectedFire.landCover] ?? landCoverLabels.unknown}</dd>
+            <dt>Location</dt>
+            <dd>
+              {selectedFire.lat.toFixed(4)}, {selectedFire.lon.toFixed(4)}{" "}
+              <button onClick={copyCoordinates}>
+                {copied ? "Copied!" : "Copy"}
+              </button> 
+            </dd>
           </dl>
         </div>
       )}
