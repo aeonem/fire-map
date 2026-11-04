@@ -15,6 +15,8 @@ type FireProperties = {
   satellite: string
 }
 
+type FiresData = FeatureCollection & { generatedAt?: string}
+
 const FIRE_POWER_STOPS = [
   { value: 0, color: "#fecc5c", label: "0" },
   { value: 5, color: "#fd8d3c", label: "5" },
@@ -34,10 +36,23 @@ const satelliteTypes: Record<string, string> = {
   N21: "NOAA-21"
 }
 
+function formatRelativeTime(iso: string): string {
+  const diffMs = new Date(iso).getTime() - Date.now();
+  const diffMinutes = Math.round(diffMs / 60_000);
+
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+  if (Math.abs(diffMinutes) < 60) {
+    return rtf.format(diffMinutes, "minute");
+  }
+  return rtf.format(Math.round(diffMinutes / 60), "hour");
+}
+
 export default function App() {
   const [selectedFire, setSelectedFire] = useState<FireProperties | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [fireCount, setFireCount] = useState<number | null>(null)
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
 
   useEffect(() => {
     if(!containerRef.current) return
@@ -53,9 +68,10 @@ export default function App() {
       const layers = map.getStyle().layers
       const firstSymbolLayer = layers.find((layer) => layer.type === "symbol")
       const response = await fetch(FIRES_URL)
-      const data: FeatureCollection = await response.json()
+      const data: FiresData = await response.json()
 
       setFireCount(data.features.length)
+      setGeneratedAt(data.generatedAt ?? null)
 
       map.addSource("fires", {
         type: "geojson",
@@ -156,6 +172,11 @@ export default function App() {
             </div>
           ))
         }
+        {generatedAt && (
+        <div style={{fontSize: 12, color: "#555", marginTop: 8}}>
+          Updated {formatRelativeTime(generatedAt)}
+        </div>
+        )}
       </div>
     </div>
   )
