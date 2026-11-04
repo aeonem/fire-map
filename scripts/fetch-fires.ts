@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises"
+import { fromUrl, type GeoTIFFImage } from "geotiff"
 
 type Fire = {
     latitude: number
@@ -26,20 +27,86 @@ const LAND_COVER_GROUPS : Record<number, LandCoverGroup> = {
   100: "natural" 
 }
 
-function toIsoTime(date: string, time: string): string{
-    const fullTime = time.padStart(4, "0")
-    const hour = fullTime.slice(0, 2)
-    const minute = fullTime.slice(2, 4)
-
-    return `${date}T${hour}:${minute}:00Z`
-}
-
 // Only handles the northern and eastern hemispheres (N/E).
 // Our bounding box is entirely within them.
 function worldCoverTileName(lat: number, lon: number): string{
     const latTile = Math.floor(lat / 3) * 3
     const lonTile = Math.floor(lon / 3) * 3
     return `ESA_WorldCover_10m_2021_v200_N${String(latTile).padStart(2, "0")}E${String(lonTile).padStart(3, "0")}_Map.tif`
+}
+
+const WORLDCOVER_BASE_URL = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map"
+const tileCache = new Map<string, Promise<GeoTIFFImage>>()
+
+function openTile(name: string): Promise<GeoTIFFImage> {
+    let tile = tileCache.get(name)
+    if (!tile) {
+        tile = fromUrl(`${WORLDCOVER_BASE_URL}/${name}`).then((tiff) => tiff.getImage())
+        tileCache.set(name, tile)
+    }
+    return tile
+}
+
+const NATURAL_THRESHOLD = 0.2
+
+function classifyWindow(pixels: Uint8Array): LandCoverGroup {
+    const groupCounts: Record<LandCoverGroup, number> = {
+        natural: 0,
+        agricultural: 0,
+        other: 0,
+        unknown: 0,
+    }
+
+    for (const code of pixels) {
+        const group = LAND_COVER_GROUPS[code] ?? "unknown"
+        groupCounts[group] += 1
+    }
+
+    const naturalShare = groupCounts.natural / pixels.length
+    if (naturalShare >= NATURAL_THRESHOLD) {
+        return "natural"
+    }
+
+    let winner: LandCoverGroup = "unknown"
+    for (const group of ["natural", "agricultural", "other", "unknown"] as const) {
+        if (groupCounts[group] > groupCounts[winner]) {
+            winner = group
+        }
+    }
+    return winner
+}
+
+async function getLandCover(lat: number, lon: number): Promise<LandCoverGroup> {
+    try {
+        const image = await openTile(worldCoverTileName(lat, lon))
+        const [originLon, originLat] = image.getOrigin()
+        const [resLon, resLat] = image.getResolution()
+
+        const x = Math.floor((lon - originLon) / resLon)
+        const y = Math.floor((lat - originLat) / resLat)
+
+        const half = 20
+        const window = [
+            Math.max(0, x - half),
+            Math.max(0, y - half),
+            Math.min(image.getWidth(), x + half),
+            Math.min(image.getHeight(), y + half),
+        ]
+
+        const rasters = await image.readRasters({ window })
+        return classifyWindow(rasters[0] as Uint8Array)
+    } catch (error) {
+        console.error(`Land cover lookup failed at ${lat}, ${lon}:`, error)
+        return "unknown"
+    }
+}
+
+function toIsoTime(date: string, time: string): string{
+    const fullTime = time.padStart(4, "0")
+    const hour = fullTime.slice(0, 2)
+    const minute = fullTime.slice(2, 4)
+
+    return `${date}T${hour}:${minute}:00Z`
 }
 
 function toFire(row: Record<string, string>): Fire {
@@ -122,6 +189,16 @@ for(const source of SOURCES) {
 if(failed.length === SOURCES.length) {
     throw new Error("All sources failed; not writing any data")
 }
+
+for (const fire of allFires) {
+    fire.landCover = await getLandCover(fire.latitude, fire.longitude)
+}
+
+const landCoverStats: Record<LandCoverGroup, number> = { natural: 0, agricultural: 0, other: 0, unknown: 0 }
+for (const fire of allFires) {
+    landCoverStats[fire.landCover] += 1
+}
+console.log("Land cover:", landCoverStats)
 
 const geojson = {
     type: "FeatureCollection",
