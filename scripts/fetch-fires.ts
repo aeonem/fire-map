@@ -6,7 +6,24 @@ type Fire = {
     frp: number
     confidence: string
     satellite: string
-    detectedAt: string
+    detectedAt: string,
+    landCover: LandCoverGroup
+}
+
+type LandCoverGroup = "natural" | "agricultural" | "other" | "unknown"
+
+const LAND_COVER_GROUPS : Record<number, LandCoverGroup> = {
+  10: "natural",
+  20: "natural",
+  30: "natural",
+  40: "agricultural",
+  50: "other" ,
+  60: "other",
+  70: "other",
+  80: "other",
+  90: "natural",
+  95: "natural",
+  100: "natural" 
 }
 
 function toIsoTime(date: string, time: string): string{
@@ -24,7 +41,8 @@ function toFire(row: Record<string, string>): Fire {
         frp: Number(row.frp),
         confidence: row.confidence,
         satellite: row.satellite,
-        detectedAt: toIsoTime(row.acq_date, row.acq_time)
+        detectedAt: toIsoTime(row.acq_date, row.acq_time),
+        landCover: "unknown"
     }
 }
 
@@ -39,7 +57,8 @@ function toFeature(fire: Fire) {
             frp: fire.frp,
             confidence: fire.confidence,
             satellite: fire.satellite,
-            detectedAt: fire.detectedAt
+            detectedAt: fire.detectedAt,
+            landCover: fire.landCover
         }
     }
 }
