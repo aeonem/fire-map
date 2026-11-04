@@ -34,6 +34,14 @@ function toIsoTime(date: string, time: string): string{
     return `${date}T${hour}:${minute}:00Z`
 }
 
+// Only handles the northern and eastern hemispheres (N/E).
+// Our bounding box is entirely within them.
+function worldCoverTileName(lat: number, lon: number): string{
+    const latTile = Math.floor(lat / 3) * 3
+    const lonTile = Math.floor(lon / 3) * 3
+    return `ESA_WorldCover_10m_2021_v200_N${String(latTile).padStart(2, "0")}E${String(lonTile).padStart(3, "0")}_Map.tif`
+}
+
 function toFire(row: Record<string, string>): Fire {
     return {
         latitude: Number(row.latitude),
