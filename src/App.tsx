@@ -6,7 +6,9 @@ import type { FeatureCollection } from "geojson";
 
 maplibregl.setWorkerUrl(workerUrl)
 
-const FIRES_URL = "https://raw.githubusercontent.com/aeonem/fire-map/refs/heads/main/public/data/fires.geojson"
+const FIRES_URL = import.meta.env.DEV
+  ? "/data/fires.geojson"
+  : "https://raw.githubusercontent.com/aeonem/fire-map/refs/heads/main/public/data/fires.geojson"
 
 type FireProperties = {
   confidence: string,
