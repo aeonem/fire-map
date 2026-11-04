@@ -27,11 +27,13 @@ const FIRE_POWER_STOPS = [
   { value: 40, color: "#bd0026", label: "40" }
 ]
 
+const LAND_COVER_GROUPS = ["woodland", "grassland", "agricultural", "other", "unknown"]
+
 const landCoverLabels: Record<string, string> = {
-  woodland: "Natural vegetation (forest, shrubland)",
-  grassland: "Natural vegetation (grassland)",
+  woodland: "Forest & shrubland",
+  grassland: "Grassland",
   agricultural: "Farmland",
-  other: "Non-vegetated (built-up, bare land, water)",
+  other: "Non-vegetated",
   unknown: "Unknown",
 }
 
@@ -64,6 +66,17 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [fireCount, setFireCount] = useState<number | null>(null)
   const [generatedAt, setGeneratedAt] = useState<string | null>(null)
+  const mapRef = useRef<maplibregl.Map | null>(null)
+  const [layerReady, setLayerReady] = useState(false)
+  const [visibleLands, setVisibleLands] = useState<string[]>(LAND_COVER_GROUPS)
+
+  function toggleLand(group: string) {
+    setVisibleLands((current) =>
+      current.includes(group)
+        ? current.filter((t) => t !== group)
+        : [...current, group]
+    )
+  }
 
   useEffect(() => {
     if(!containerRef.current) return
@@ -74,6 +87,7 @@ export default function App() {
       center: [35, 39], // [lng, lat]
       zoom: 5
     })
+    mapRef.current = map
 
     map.on("load", async () => {
       const layers = map.getStyle().layers
@@ -110,12 +124,18 @@ export default function App() {
       },
       firstSymbolLayer?.id
     )
+      setLayerReady(true)
     })
 
     map.on("click", "fires", (e) => {
       const feature = e.features?.[0]
       if(!feature) return;
       setSelectedFire(feature.properties as FireProperties)
+
+      if (feature.geometry.type === "Point") {
+        const [lon, lat] = feature.geometry.coordinates
+        console.log(`${lat}, ${lon}`)
+      }
     })
 
     map.on("mouseenter", "fires", () => {
@@ -126,8 +146,23 @@ export default function App() {
       map.getCanvas().style.cursor = ""
     })
 
-    return () => map.remove()
+    return () => {
+      map.remove()
+      mapRef.current = null
+    }
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !layerReady) return
+
+    map.setFilter("fires", [
+      "in",
+      ["coalesce", ["get", "landCover"], "unknown"],
+      ["literal", visibleLands]
+    ])
+  }, [visibleLands, layerReady]
+  )
 
   return (
     <div style={{position: "relative", width: "100%", height: "100%"}}>
@@ -174,8 +209,7 @@ export default function App() {
         background: "white", padding: 12, borderRadius: 8,
       }}>
         <strong>Fire intensity (MW)</strong>
-        {
-          FIRE_POWER_STOPS.map((stop) => (
+        {FIRE_POWER_STOPS.map((stop) => (
             <div key={stop.value}>
               <span style={{
                 display: "inline-block", width: 12, height: 12,
@@ -183,8 +217,18 @@ export default function App() {
               }} />
               {" "}{stop.label}
             </div>
-          ))
-        }
+        ))}
+        <strong style={{ display: "block", marginTop: 12 }}>Land type</strong>
+        {LAND_COVER_GROUPS.map((group) => (
+          <label key={group} style={{display: "block"}}>
+            <input
+              type="checkbox"
+              checked={visibleLands.includes(group)}
+              onChange={() => toggleLand(group)}
+            />
+            {" "}{landCoverLabels[group]}
+          </label>
+        ))}
         {generatedAt && (
         <div style={{fontSize: 12, color: "#555", marginTop: 8}}>
           Updated {formatRelativeTime(generatedAt)}
