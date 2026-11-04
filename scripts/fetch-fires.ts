@@ -11,20 +11,20 @@ type Fire = {
     landCover: LandCoverGroup
 }
 
-type LandCoverGroup = "natural" | "agricultural" | "other" | "unknown"
+type LandCoverGroup = "woodland" | "grassland" | "agricultural" | "other" | "unknown"
 
 const LAND_COVER_GROUPS : Record<number, LandCoverGroup> = {
-  10: "natural",
-  20: "natural",
-  30: "natural",
+  10: "woodland",
+  20: "woodland",
+  30: "grassland",
   40: "agricultural",
   50: "other" ,
   60: "other",
   70: "other",
   80: "other",
-  90: "natural",
-  95: "natural",
-  100: "natural" 
+  90: "grassland",
+  95: "woodland",
+  100: "grassland" 
 }
 
 // Only handles the northern and eastern hemispheres (N/E).
@@ -47,11 +47,12 @@ function openTile(name: string): Promise<GeoTIFFImage> {
     return tile
 }
 
-const NATURAL_THRESHOLD = 0.2
+const WOODLAND_THRESHOLD = 0.2
 
 function classifyWindow(pixels: Uint8Array): LandCoverGroup {
     const groupCounts: Record<LandCoverGroup, number> = {
-        natural: 0,
+        woodland: 0,
+        grassland: 0,
         agricultural: 0,
         other: 0,
         unknown: 0,
@@ -62,13 +63,13 @@ function classifyWindow(pixels: Uint8Array): LandCoverGroup {
         groupCounts[group] += 1
     }
 
-    const naturalShare = groupCounts.natural / pixels.length
-    if (naturalShare >= NATURAL_THRESHOLD) {
-        return "natural"
+    const woodlandShare = groupCounts.woodland / pixels.length
+    if (woodlandShare >= WOODLAND_THRESHOLD) {
+        return "woodland"
     }
 
     let winner: LandCoverGroup = "unknown"
-    for (const group of ["natural", "agricultural", "other", "unknown"] as const) {
+    for (const group of ["woodland","grassland" ,"agricultural", "other", "unknown"] as const) {
         if (groupCounts[group] > groupCounts[winner]) {
             winner = group
         }
@@ -194,7 +195,7 @@ for (const fire of allFires) {
     fire.landCover = await getLandCover(fire.latitude, fire.longitude)
 }
 
-const landCoverStats: Record<LandCoverGroup, number> = { natural: 0, agricultural: 0, other: 0, unknown: 0 }
+const landCoverStats: Record<LandCoverGroup, number> = { woodland: 0, grassland: 0,agricultural: 0, other: 0, unknown: 0 }
 for (const fire of allFires) {
     landCoverStats[fire.landCover] += 1
 }

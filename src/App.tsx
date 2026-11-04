@@ -14,7 +14,8 @@ type FireProperties = {
   confidence: string,
   detectedAt: string,
   frp: number,
-  satellite: string
+  satellite: string,
+  landCover: string
 }
 
 type FiresData = FeatureCollection & { generatedAt?: string}
@@ -25,6 +26,14 @@ const FIRE_POWER_STOPS = [
   { value: 15, color: "#f03b20", label: "15" },
   { value: 40, color: "#bd0026", label: "40" }
 ]
+
+const landCoverLabels: Record<string, string> = {
+  woodland: "Natural vegetation (forest, shrubland)",
+  grassland: "Natural vegetation (grassland)",
+  agricultural: "Farmland",
+  other: "Non-vegetated (built-up, bare land, water)",
+  unknown: "Unknown",
+}
 
 const confidenceLevels: Record<string, string> = {
   l: "Low",
@@ -138,6 +147,8 @@ export default function App() {
             <dd>{confidenceLevels[selectedFire.confidence] ?? selectedFire.confidence}</dd>
             <dt>Satellite</dt>
             <dd>{satelliteTypes[selectedFire.satellite] ?? selectedFire.satellite}</dd>
+            <dt>Land type</dt>
+            <dd>{landCoverLabels[selectedFire.landCover] ?? landCoverLabels.unknown}</dd>
           </dl>
         </div>
       )}
