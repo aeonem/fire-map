@@ -47,40 +47,62 @@ function toFeature(fire: Fire) {
 const MAP_KEY = process.env.FIRMS_MAP_KEY
 
 if(!MAP_KEY){
-    throw new Error("Coulnd't find FIRMS_MAP_KEY")
+    throw new Error("Couldn't find FIRMS_MAP_KEY")
 }
 
-const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${MAP_KEY}/VIIRS_SNPP_NRT/26,36,45,42/2`
+async function fetchFires(source: string): Promise<Fire[]> {
+    const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${MAP_KEY}/${source}/26,36,45,42/2`
 
-const response = await fetch(url)
-if(!response.ok) {
-    throw new Error(`FIRMS REQUEST FAILED: ${response.status}`)
-}
+    const response = await fetch(url)
+    if(!response.ok) {
+        throw new Error(`FIRMS REQUEST FAILED: ${response.status} ${source}`)
+    }
 
-const text = await response.text()
-const lines = text.trim().split("\n")
+    const text = await response.text()
+    const lines = text.trim().split("\n")
 
-const [headerLine, ...dataLines] = lines
-const headers = headerLine.split(",")
+    const [headerLine, ...dataLines] = lines
+    const headers = headerLine.split(",")
 
-const rows = dataLines.map((line) => {
-    const values = line.split(",")
-    const row: Record<string, string> = {}
-    headers.forEach((header, idx) => {
-        row[header] = values[idx]
+    const rows = dataLines.map((line) => {
+        const values = line.split(",")
+        const row: Record<string, string> = {}
+        headers.forEach((header, idx) => {
+            row[header] = values[idx]
+        })
+        return row
     })
-    return row
-})
 
-const fires = rows.map(toFire)
+    return rows.map(toFire)
+}
+
+const SOURCES = ["VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT","VIIRS_SNPP_NRT"]
+
+const allFires: Fire[] = []
+const failed: string[] = []
+
+for(const source of SOURCES) {
+    try{
+        const fires = await fetchFires(source)
+        console.log(`${source}: ${fires.length} detections`)
+        allFires.push(...fires)
+    } catch (error) {
+        console.error(`${source} failed:`, error)
+        failed.push(source)
+    }
+}
+
+if(failed.length === SOURCES.length) {
+    throw new Error("All sources failed; not writing any data")
+}
 
 const geojson = {
     type: "FeatureCollection",
-    features: fires.map(toFeature),
+    features: allFires.map(toFeature),
     generatedAt: new Date().toISOString()
 }
 
 await mkdir("public/data", { recursive: true })
 await writeFile("public/data/fires.geojson", JSON.stringify(geojson))
 
-console.log(`Wrote ${fires.length} fires to public/data/fires.geojson`);
+console.log(`Wrote ${allFires.length} fires to public/data/fires.geojson`);
