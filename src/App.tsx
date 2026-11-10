@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -27,6 +27,15 @@ const FIRE_POWER_STOPS = [
   { value: 15, color: "#f03b20", label: "15" },
   { value: 40, color: "#bd0026", label: "40" }
 ]
+
+const TERRAIN_SOURCE: maplibregl.RasterDEMSourceSpecification = {
+  type: "raster-dem",
+  tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+  tileSize: 256,
+  encoding: "terrarium",
+  maxzoom: 15,
+  attribution: "Terrain: Mapzen / AWS Terrain Tiles",
+}
 
 const LAND_COVER_GROUPS = ["woodland", "grassland", "agricultural", "other", "unknown"]
 
@@ -71,6 +80,7 @@ export default function App() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [layerReady, setLayerReady] = useState(false)
   const [visibleLands, setVisibleLands] = useState<string[]>(LAND_COVER_GROUPS)
+  const [terrainOn, setTerrainOn] = useState(false)
 
   function toggleLand(group: string) {
     setVisibleLands((current) =>
@@ -103,14 +113,8 @@ export default function App() {
       const layers = map.getStyle().layers
       const firstSymbolLayer = layers.find((layer) => layer.type === "symbol")
 
-      map.addSource("terrain", {
-        type: "raster-dem",
-        tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-        tileSize: 256,
-        encoding: "terrarium",
-        maxzoom: 15,
-        attribution: "Terrain: Mapzen / AWS Terrain Tiles",
-      })
+      map.addSource("terrain", TERRAIN_SOURCE)
+      map.addSource("terrain-3d", TERRAIN_SOURCE)
 
       map.addLayer(
         {
@@ -194,9 +198,35 @@ export default function App() {
   }, [visibleLands, layerReady]
   )
 
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !layerReady) return
+
+    if (terrainOn) {
+      map.setTerrain({source: "terrain-3d", exaggeration: 1.5})
+      map.easeTo({pitch: 60, duration: 1000})
+    } else {
+      map.setTerrain(null)
+      map.easeTo({pitch:0, duration: 1000})
+    }
+  }, [terrainOn, layerReady])
+
   return (
     <div style={{position: "relative", width: "100%", height: "100%"}}>
       <div ref={containerRef} style={{width: "100%", height: "100%"}}/>
+
+      <button
+        onClick={() => setTerrainOn((on) => !on)}
+        aria-pressed={terrainOn}
+        style={{
+          position: "absolute", top: 16, left: 16,
+          background: "white", padding: "8px 12px", borderRadius: 8,
+          border: "none", cursor: "pointer"
+        }}
+      >
+        {terrainOn ? "2D view" : "3D terrain"}
+      </button>
+
       {selectedFire && (
         <div style={{
           position: "absolute", top: 16, right: 16,
