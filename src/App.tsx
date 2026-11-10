@@ -102,6 +102,28 @@ export default function App() {
     map.on("load", async () => {
       const layers = map.getStyle().layers
       const firstSymbolLayer = layers.find((layer) => layer.type === "symbol")
+
+      map.addSource("terrain", {
+        type: "raster-dem",
+        tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        encoding: "terrarium",
+        maxzoom: 15,
+        attribution: "Terrain: Mapzen / AWS Terrain Tiles",
+      })
+
+      map.addLayer(
+        {
+          id: "hillshade",
+          type: "hillshade",
+          source: "terrain",
+          paint: {
+            "hillshade-exaggeration": 0.5,
+          },
+        },
+        firstSymbolLayer?.id
+      )
+
       const response = await fetch(FIRES_URL)
       const data: FiresData = await response.json()
 
